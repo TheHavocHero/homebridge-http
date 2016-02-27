@@ -19,7 +19,7 @@ var pollingtoevent = require('polling-to-event');
 		this.off_body               = config["off_body"];
 		this.status_url             = config["status_url"];
 		this.brightness_url         = config["brightness_url"];
-		this.brightnesslvl_url      = config["brightnesslvl_url"];
+		this.temperature_url        = config["temperature_url"];
 		this.http_method            = config["http_method"] 	  	 	|| "GET";;
 		this.http_brightness_method = config["http_brightness_method"]  || this.http_method;
 		this.username               = config["username"] 	  	 	 	|| "";
@@ -62,8 +62,8 @@ var pollingtoevent = require('polling-to-event');
 					}
 					break;
 				case "Light":
-					if (that.lightbulbService) {
-						that.lightbulbService.getCharacteristic(Characteristic.On)
+					if (that.thermostatService) {
+						that.thermostatService.getCharacteristic(Characteristic.On)
 						.setValue(that.state);
 					}		
 					break;			
@@ -72,8 +72,8 @@ var pollingtoevent = require('polling-to-event');
 
 	}
 	// Brightness Polling
-	if (this.brightnesslvl_url && this.brightnessHandling =="realtime") {
-		var brightnessurl = this.brightnesslvl_url;
+	if (this.temperature_url && this.brightnessHandling =="realtime") {
+		var brightnessurl = this.temperature_url;
 		var levelemitter = pollingtoevent(function(done) {
 	        	that.httpRequest(brightnessurl, "", "GET", that.username, that.password, that.sendimmediately, function(error, response, responseBody) {
             		if (error) {
@@ -88,9 +88,9 @@ var pollingtoevent = require('polling-to-event');
 		levelemitter.on("levelpoll", function(data) {  
 			that.currentlevel = parseInt(data);
 
-			if (that.lightbulbService) {				
-				that.log(that.service, "received brightness",that.brightnesslvl_url, "level is currently", that.currentlevel); 		        
-				that.lightbulbService.getCharacteristic(Characteristic.Brightness)
+			if (that.thermostatService) {				
+				that.log(that.service, "received brightness",that.temperature_url, "level is currently", that.currentlevel); 		        
+				that.thermostatService.getCharacteristic(Characteristic.Brightness)
 				.setValue(that.currentlevel);
 			}        
     	});
@@ -171,12 +171,12 @@ var pollingtoevent = require('polling-to-event');
   },
 
 	getBrightness: function(callback) {
-		if (!this.brightnesslvl_url) {
+		if (!this.temperature_url) {
 			this.log.warn("Ignoring request; No brightness level url defined.");
 			callback(new Error("No brightness level url defined."));
 			return;
 		}		
-			var url = this.brightnesslvl_url;
+			var url = this.temperature_url;
 			this.log("Getting Brightness level");
 	
 			this.httpRequest(url, "", "GET", this.username, this.password, this.sendimmediately, function(error, response, responseBody) {
@@ -256,42 +256,42 @@ var pollingtoevent = require('polling-to-event');
 					.on('set', this.setPowerState.bind(this));					
 					break;}
 					return [this.switchService];
-		case "Light":	
-			this.lightbulbService = new Service.Lightbulb(this.name);			
+		case "Thermostat":	
+			this.thermostatService = new Service.Thermostat(this.name);			
 			switch (this.switchHandling) {
 			//Power Polling
 			case "yes" :
-				this.lightbulbService
+				this.thermostatService
 				.getCharacteristic(Characteristic.On)
 				.on('get', this.getPowerState.bind(this))
 				.on('set', this.setPowerState.bind(this));
 				break;
 			case "realtime":
-				this.lightbulbService
+				this.thermostatService
 				.getCharacteristic(Characteristic.On)
 				.on('get', function(callback) {callback(null, that.state)})
 				.on('set', this.setPowerState.bind(this));
 				break;
 			default:		
-				this.lightbulbService
+				this.thermostatService
 				.getCharacteristic(Characteristic.On)	
 				.on('set', this.setPowerState.bind(this));
 				break;
 			}
 			// Brightness Polling 
 			if (this.brightnessHandling == "realtime") {
-				this.lightbulbService 
+				this.thermostatService 
 				.addCharacteristic(new Characteristic.Brightness())
 				.on('get', function(callback) {callback(null, that.currentlevel)})
 				.on('set', this.setBrightness.bind(this));
 			} else if (this.brightnessHandling == "yes") {
-				this.lightbulbService
+				this.thermostatService
 				.addCharacteristic(new Characteristic.Brightness())
 				.on('get', this.getBrightness.bind(this))
 				.on('set', this.setBrightness.bind(this));							
 			}
 	
-			return [informationService, this.lightbulbService];
+			return [informationService, this.thermostatService];
 			break;		
 		}
 	}
